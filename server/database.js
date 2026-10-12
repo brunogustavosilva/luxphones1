@@ -11,7 +11,8 @@ if (!connectionString) throw new Error('DATABASE_URL não definido. Configure o 
 
 export const pool = new Pool({
   connectionString,
-  max: 8,
+  max: process.env.VERCEL ? 3 : 8,
+  allowExitOnIdle: Boolean(process.env.VERCEL),
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
   ssl: connectionString.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,

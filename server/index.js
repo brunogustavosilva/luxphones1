@@ -14,7 +14,7 @@ import { LOCKOUT_SECONDS, nextFailureState } from './auth-policy.js';
 const app = express();
 const cleanupHistory = createRetentionCleanup(pool);
 const port = Number(process.env.PORT || 3001);
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 const jwtSecret = process.env.JWT_SECRET || (isProduction ? '' : 'local-development-only-change-this-secret');
 const cookieName = 'luxphones_session';
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -41,7 +41,10 @@ function remoteIp(req) {
   return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', asyncRoute(async (_req, res) => {
+  await pool.query('SELECT 1');
+  res.json({ status: 'ok', database: 'connected' });
+}));
 
 app.post('/api/auth/login', asyncRoute(async (req, res) => {
   const username = String(req.body?.username || '').trim().toLowerCase();
@@ -313,14 +316,21 @@ app.use((error, _req, res, _next) => {
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.resolve(currentDir, '../dist');
-if (isProduction) {
+const standalone = !process.env.VERCEL && process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isProduction && standalone) {
   app.use(express.static(distDir));
   app.get('*', (_req, res) => res.sendFile(path.join(distDir, 'index.html')));
 }
 
-initializeDatabase()
-  .then(() => app.listen(port, '0.0.0.0', () => console.log(`LUXPHONES disponível na porta ${port}`)))
-  .catch((error) => {
-    console.error('Não foi possível iniciar com o PostgreSQL:', error.message);
-    process.exit(1);
-  });
+// Local development/Docker run a listening server. Vercel imports the app only;
+// migrations and seed data are not repeated on every serverless cold start.
+if (standalone) {
+  initializeDatabase()
+    .then(() => app.listen(port, '0.0.0.0', () => console.log(`LUXPHONES disponível na porta ${port}`)))
+    .catch((error) => {
+      console.error('Não foi possível iniciar com o PostgreSQL:', error.code || error.name);
+      process.exit(1);
+    });
+}
+
+export default app;

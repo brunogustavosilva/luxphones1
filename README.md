@@ -89,3 +89,22 @@ O webhook verifica a assinatura HMAC e consulta o pagamento no Mercado Pago ante
 Referências oficiais: [Checkout Pro](https://www.mercadopago.com.br/developers/en/reference/online-payments/checkout-pro-preferences/overview), [contas de teste](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-preferences/test-accounts), [notificações e assinatura](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-preferences/payment-notifications).
 
 Os testes em `server/commerce-policy.test.js` cobrem validação do carrinho, preços, estoque, ambiente e assinatura. `server/commerce.integration.test.js` cobre migração, checkout concorrente, pagamentos e retenção no PostgreSQL isolado; é ignorado quando `COMMERCE_TEST_DATABASE_URL` não está definida e exige `COMMERCE_TEST_BRANCH_HOST` com o hostname exato da branch isolada. O teste nunca usa `DATABASE_URL` como fallback.
+
+## Vercel: frontend e API
+
+O repositório contém `api/index.js`, que expõe a API Express como uma função Node.js. `vercel.json` configura o build Vite, encaminha `/api/*` para a função e `/admin/*` para o React. A função importa o Express sem abrir uma porta e sem executar migrações ou criar dados a cada inicialização. O desenvolvimento local e o Docker continuam inicializando o banco normalmente.
+
+No projeto da Vercel, em **Settings → Environment Variables**, configure para Production (e Preview, se for usar previews):
+
+- `DATABASE_URL`: conexão pooled do banco Neon existente, igual à usada localmente. Nunca use o prefixo `VITE_` para segredos.
+- `JWT_SECRET`: segredo com pelo menos 32 caracteres. Deve permanecer estável para as sessões continuarem válidas.
+- `SITE_URL`: `https://luxphones1.vercel.app`.
+- Para checkout: `MP_ACCESS_TOKEN`, `MP_ENV` (`test` enquanto usar a conta de teste), `MP_WEBHOOK_URL` e `MP_WEBHOOK_SECRET` quando as notificações estiverem configuradas.
+
+O `.env.local` não é enviado ao GitHub e não configura automaticamente a Vercel. Após cadastrar ou alterar variáveis, faça **Redeploy**. Use a raiz do repositório como Root Directory, preset **Vite**, build `npm run build` e saída `dist`.
+
+O banco atual já recebeu a migração de comércio. Se trocar para um banco novo, aplique `npm run db:migrate` antes de usar a API e inicialize uma conta administrativa. A função não cria uma conta automaticamente. `ADMIN_PASSWORD` só é usada na criação inicial; alterá-la no painel da Vercel não muda a senha de uma conta já existente.
+
+Para verificar o deploy, abra `/api/health`: deve retornar `{"status":"ok","database":"connected"}`. `/api/products` deve retornar JSON, e `/api/auth/me` deve retornar 401 em JSON para visitantes sem sessão. Se retornar HTML/404, confira as regras de roteamento e se o deploy inclui a função. Se retornar 503, confira as variáveis e os logs; se retornar 500, confira conectividade, URL do banco e tabelas.
+
+Referência: [Vite e funções na Vercel](https://vercel.com/docs/frameworks/frontend/vite).

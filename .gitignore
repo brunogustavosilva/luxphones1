@@ -14,3 +14,5 @@ npm-debug.log*
 .codex/
 .aws/
 skills-lock.json
+
+.vercel/
