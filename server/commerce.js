@@ -22,12 +22,15 @@ export function registerCommerce(app, { pool, requireAdmin, asyncRoute, cleanupH
   const publicOrder = (order) => ({ id: order.id, total: order.total, status: order.status, payment_status: order.payment_status, stock_issue: order.stock_issue, test_mode: mp.testMode });
   async function byToken(token) {
     if (!uuidPattern.test(token)) throw problem('Pedido não encontrado.', 404);
-    const { rows } = await pool.query(`SELECT id, total, status, payment_status, checkout_key, payment_id, payment_status, stock_issue, payment_checked_at FROM orders WHERE public_token = $1 AND created_at >= ${retentionCutoff}`, [token]);
+    const { rows } = await pool.query(`SELECT id, total, status, payment_status, checkout_key, payment_id, stock_issue, payment_checked_at FROM orders WHERE public_token = $1 AND created_at >= ${retentionCutoff}`, [token]);
     if (!rows[0]) throw problem('Pedido não encontrado ou expirado.', 404);
     return rows[0];
   }
 
   app.post('/api/checkout', rateLimit, asyncRoute(async (req, res) => {
+    if (process.env.VERCEL && (site.protocol !== 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(site.hostname))) {
+      throw problem('Configure SITE_URL na Vercel com o endereço público HTTPS da loja e faça um novo deploy.', 503);
+    }
     const input = normalizeCheckout(req.body);
     const hash = checkoutHash(input);
     await mp.merchant(); // Verify the seller/test environment before creating any preference.

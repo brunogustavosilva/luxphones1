@@ -53,3 +53,17 @@ test('localhost returns do not enable HTTPS-only auto return or webhook', () => 
   const production = preferenceBody(order, 'https://example.com', 'https://example.com/api/payments/webhook');
   assert.equal(production.auto_return, 'approved');
 });
+
+test('published checkout returns every payment result to the current domain and identifies the order', () => {
+  const token = randomUUID();
+  const order = { public_token: token, checkout_key: randomUUID(), created_at: new Date(), items: [{ name: 'Produto teste', product_id: '1', quantity: 1, unit_price: 10 }], customer_name: 'Cliente', customer_email: 'cliente@example.com', customer_whatsapp: '5541999999999' };
+  const domain = 'https://luxphones1-odpn.vercel.app';
+  const body = preferenceBody(order, domain, domain + '/api/payments/webhook');
+  for (const value of Object.values(body.back_urls)) {
+    const url = new URL(value);
+    assert.equal(url.origin, domain);
+    assert.equal(url.searchParams.get('checkout_return'), token);
+  }
+  assert.equal(body.auto_return, 'approved');
+  assert.equal(body.notification_url, domain + '/api/payments/webhook');
+});

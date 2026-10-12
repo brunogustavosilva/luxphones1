@@ -98,7 +98,7 @@ No projeto da Vercel, em **Settings → Environment Variables**, configure para 
 
 - `DATABASE_URL`: conexão pooled do banco Neon existente, igual à usada localmente. Nunca use o prefixo `VITE_` para segredos.
 - `JWT_SECRET`: segredo com pelo menos 32 caracteres. Deve permanecer estável para as sessões continuarem válidas.
-- `SITE_URL`: `https://luxphones1.vercel.app`.
+- `SITE_URL`: `https://luxphones1-odpn.vercel.app`.
 - Para checkout: `MP_ACCESS_TOKEN`, `MP_ENV` (`test` enquanto usar a conta de teste), `MP_WEBHOOK_URL` e `MP_WEBHOOK_SECRET` quando as notificações estiverem configuradas.
 
 O `.env.local` não é enviado ao GitHub e não configura automaticamente a Vercel. Após cadastrar ou alterar variáveis, faça **Redeploy**. Use a raiz do repositório como Root Directory, preset **Vite**, build `npm run build` e saída `dist`.
@@ -108,3 +108,5 @@ O banco atual já recebeu a migração de comércio. Se trocar para um banco nov
 Para verificar o deploy, abra `/api/health`: deve retornar `{"status":"ok","database":"connected"}`. `/api/products` deve retornar JSON, e `/api/auth/me` deve retornar 401 em JSON para visitantes sem sessão. Se retornar HTML/404, confira as regras de roteamento e se o deploy inclui a função. Se retornar 503, confira as variáveis e os logs; se retornar 500, confira conectividade, URL do banco e tabelas.
 
 Referência: [Vite e funções na Vercel](https://vercel.com/docs/frameworks/frontend/vite).
+
+Para testar o checkout publicado, mantenha `MP_ENV=test` e `SITE_URL=https://luxphones1-odpn.vercel.app`. A API recusa um endereço de retorno HTTP/localhost quando executa na Vercel. Configure `MP_WEBHOOK_URL=https://luxphones1-odpn.vercel.app/api/payments/webhook` junto com `MP_WEBHOOK_SECRET`, obtido no painel do Mercado Pago. Pagamentos com credenciais de teste não enviam notificações automaticamente: valide o status pelo retorno à loja/Atualizar pagamento e valide a recepção do webhook pelo simulador do painel do Mercado Pago.

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 test('Vercel imports Express without listening or initializing the database', async () => {
   process.env.VERCEL = '1';
   process.env.DATABASE_URL = 'postgresql://fixture:fixture@127.0.0.1:1/fixture';
+  process.env.SITE_URL = 'http://localhost:5173';
   process.env.JWT_SECRET = 'test-only-secret-with-at-least-32-characters';
   const { pool } = await import('./database.js');
   const queries = [];
@@ -26,6 +27,9 @@ test('Vercel imports Express without listening or initializing the database', as
     const me = await fetch(`${base}/api/auth/me`);
     assert.equal(me.status, 401);
     assert.match(me.headers.get('content-type'), /application\/json/);
+    const checkout = await fetch(`${base}/api/checkout`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    assert.equal(checkout.status, 503);
+    assert.match((await checkout.json()).error, /SITE_URL/);
     const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
     assert.equal(login.status, 400);
     assert.match((await login.json()).error, /usuário e senha/);
