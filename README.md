@@ -53,11 +53,11 @@ A visão geral carrega apenas os cinco pedidos recentes; as listas de pedidos e 
 
 A vitrine tem filtros separados por marca e tipo de produto: smartphones, carregadores, fones de ouvido, capinhas, computadores e notebooks. Os produtos existentes são classificados como smartphones; altere a categoria no formulário de edição. Novas categorias aparecem mesmo sem produtos cadastrados, sem inserir estoque fictício.
 
-O carrinho permite adicionar, remover e ajustar quantidades, e guarda apenas IDs e quantidades no navegador. No checkout, o cliente informa nome, WhatsApp e e-mail. Preços e disponibilidade são conferidos no servidor; os valores enviados pelo navegador não definem a cobrança. O pagamento usa o redirecionamento do Checkout Pro do Mercado Pago. A Public Key não é necessária nesse fluxo, pois não há coleta de cartão na aplicação.
+O carrinho permite adicionar, remover e ajustar quantidades, e guarda apenas IDs e quantidades no navegador. No checkout, o cliente informa nome, WhatsApp e e-mail. Preços e disponibilidade são conferidos no servidor; os valores enviados pelo navegador não definem a cobrança. O pagamento usa o redirecionamento do Checkout Pro via **Orders API** do Mercado Pago. Novos checkouts são criados com `POST /v1/orders`, guardam `mp_order_id` e são consultados por `GET /v1/orders/{id}`. Pedidos anteriores sem `mp_order_id` mantêm a consulta via Payments/Preferences. A Public Key não é necessária nesse fluxo, pois não há coleta de cartão na aplicação.
 
 A entrega/retirada é combinada pelo WhatsApp. O checkout cobra os produtos, sem calcular ou incluir frete. Não há cálculo de entrega nem coleta de endereço nesta versão.
 
-Pedidos exibem cliente, WhatsApp, descrição da compra, valor, pagamento e operação. Pagamentos online são confirmados exclusivamente pela API do Mercado Pago; o painel permite atualizar a consulta, enviar e entregar depois da aprovação. Pedidos de balcão permitem registro manual de recebimento. A receita de vendas considera apenas pagamentos aprovados. O tema claro mantém a aparência existente, e o tema escuro usa carvão e dourado; a escolha é salva no navegador.
+Pedidos exibem cliente, WhatsApp, descrição da compra, valor, pagamento e operação. Pagamentos online são confirmados exclusivamente pela API do Mercado Pago; o painel permite atualizar a consulta, enviar e entregar depois da aprovação. Pedidos de balcão permitem registro manual de recebimento. A receita de vendas considera pagamentos aprovados e desconta os valores confirmados de reembolsos parciais. O tema claro mantém a aparência existente, e o tema escuro usa carvão e dourado; a escolha é salva no navegador.
 
 ## Mercado Pago no localhost
 
@@ -81,7 +81,7 @@ A API reaproveita o pedido para tentativas com a mesma chave e os mesmos dados d
 
 1. Execute `npm run db:migrate` para aplicar as alterações aditivas de categorias e pedidos. O comando usa a conexão direta; a API continua usando a pooled. A inicialização da API também aplica as migrações de forma idempotente.
 2. Configure `SITE_URL` com o domínio público HTTPS.
-3. No painel do Mercado Pago, configure o evento **Pagamentos** para `https://SEU-DOMINIO/api/payments/webhook` e obtenha a chave de assinatura. Defina a mesma URL em `MP_WEBHOOK_URL` e a chave em `MP_WEBHOOK_SECRET`.
+3. No painel do Mercado Pago, configure os eventos **Order (Mercado Pago)** para novos pedidos e **Pagamentos** para pedidos antigos para `https://SEU-DOMINIO/api/payments/webhook` e obtenha a chave de assinatura. Defina a mesma URL em `MP_WEBHOOK_URL` e a chave em `MP_WEBHOOK_SECRET`.
 4. Para cobrar de verdade, substitua o token por credenciais de produção e configure `MP_ENV=production`. Reinicie a API depois de alterar as variáveis. O servidor recusa contas de teste no modo de produção.
 
 O webhook verifica a assinatura HMAC e consulta o pagamento no Mercado Pago antes de atualizar o pedido. A confirmação exige correspondência de referência, valor, moeda, recebedor e ambiente. Alterar parâmetros na URL de retorno nunca marca um pedido como pago. Reembolsos e contestações são refletidos ao receber uma notificação ou atualizar o pagamento. A retenção de três meses continua valendo para pedidos online e de balcão.
@@ -109,4 +109,16 @@ Para verificar o deploy, abra `/api/health`: deve retornar `{"status":"ok","data
 
 Referência: [Vite e funções na Vercel](https://vercel.com/docs/frameworks/frontend/vite).
 
-Para testar o checkout publicado, mantenha `MP_ENV=test` e `SITE_URL=https://luxphones1-odpn.vercel.app`. A API recusa um endereço de retorno HTTP/localhost quando executa na Vercel. Configure `MP_WEBHOOK_URL=https://luxphones1-odpn.vercel.app/api/payments/webhook` junto com `MP_WEBHOOK_SECRET`, obtido no painel do Mercado Pago. Pagamentos com credenciais de teste não enviam notificações automaticamente: valide o status pelo retorno à loja/Atualizar pagamento e valide a recepção do webhook pelo simulador do painel do Mercado Pago.
+Para testar o checkout publicado, mantenha `MP_ENV=test` e `SITE_URL=https://luxphones1-odpn.vercel.app`. A API recusa um endereço de retorno HTTP/localhost quando executa na Vercel. Configure `MP_WEBHOOK_URL=https://luxphones1-odpn.vercel.app/api/payments/webhook` junto com `MP_WEBHOOK_SECRET`, obtido no painel do Mercado Pago. Valide o status pelo retorno à loja/Atualizar pagamento e configure o evento Order (Mercado Pago) para receber notificações da Orders API. Use o simulador do painel do Mercado Pago para conferir a assinatura e a recepção do webhook.
+
+## Orders API e avaliação da integração
+
+Após atualizar esta versão, execute `npm run db:migrate` antes do deploy. A migração `002-orders-api.sql` adiciona `mp_order_id` e o valor de reembolso sem apagar ou converter os pedidos existentes.
+
+Novos pagamentos usam uma order `online`, com processamento `manual`, captura `automatic_async`, preços em strings decimais e chave de idempotência por checkout. O código verifica o Order ID, referência, conta vendedora, moeda e valores antes de confirmar o pagamento. Estados pendentes, em análise e autorizados não são marcados como pagos. A baixa de estoque continua transacional e ocorre uma única vez.
+
+O painel mostra o **Order ID** completo nos pedidos novos; a página de retorno também mostra esse ID no modo de teste. Para a avaliação de qualidade, faça uma **nova compra de teste após o deploy**, aguarde a aprovação e copie esse identificador. IDs de ordens comerciais dos pagamentos antigos e Payment IDs não substituem o ID `ORD…`/`ORDTST…` da Orders API.
+
+No Mercado Pago, habilite **Order (Mercado Pago)** (tópico `orders_v2`, notificações com `type=order`) para `https://luxphones1-odpn.vercel.app/api/payments/webhook`. Mantenha o evento **Pagamentos** se ainda precisar atualizar checkouts antigos. Configure a chave da mesma aplicação em `MP_WEBHOOK_SECRET` na Vercel e faça Redeploy após alterar variáveis. A assinatura é verificada antes de consultar a order no provedor; estados informados pelo navegador ou pelo corpo do webhook nunca confirmam pagamento.
+
+Referências: [criação de order](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-orders/create-order), [URLs de retorno](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-orders/web-integration/configure-back-urls), [notificações Orders](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-orders/notifications).

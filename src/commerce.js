@@ -6,7 +6,7 @@ export const productTypes = [
   { id: 'computers', label: 'Computadores' },
   { id: 'notebooks', label: 'Notebooks' },
 ];
-export const paymentLabels = { pending: 'Aguardando pagamento', approved: 'Pagamento aprovado', authorized: 'Autorizado', in_process: 'Em análise', in_mediation: 'Em mediação', rejected: 'Recusado', cancelled: 'Cancelado', refunded: 'Reembolsado', charged_back: 'Contestação' };
+export const paymentLabels = { pending: 'Aguardando pagamento', approved: 'Pagamento aprovado', authorized: 'Autorizado', in_process: 'Em análise', in_mediation: 'Em mediação', rejected: 'Recusado', cancelled: 'Cancelado', partially_refunded: 'Reembolso parcial', refunded: 'Reembolsado', charged_back: 'Contestação' };
 export const currency = (value = 0) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value));
 export async function request(path, options = {}) {
   const response = await fetch(`/api${path}`, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } });

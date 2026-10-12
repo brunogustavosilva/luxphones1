@@ -187,7 +187,7 @@ app.use(['/api/orders', '/api/repairs', '/api/dashboard'], requireAdmin, asyncRo
 
 app.get('/api/orders', requireAdmin, asyncRoute(async (req, res) => {
   const limit = req.query.recent === 'true' ? 5 : 100;
-  const { rows } = await pool.query(`SELECT id, customer_name, customer_whatsapp, purchase_description, total, status, payment_status, source, stock_issue, payment_issue, created_at FROM orders WHERE created_at >= ${retentionCutoff} ORDER BY created_at DESC, id DESC LIMIT $1`, [limit]);
+  const { rows } = await pool.query(`SELECT id, customer_name, customer_whatsapp, purchase_description, total, status, payment_status, source, mp_order_id, stock_issue, payment_issue, created_at FROM orders WHERE created_at >= ${retentionCutoff} ORDER BY created_at DESC, id DESC LIMIT $1`, [limit]);
   res.json(rows);
 }));
 
@@ -265,7 +265,7 @@ app.patch('/api/repairs/:id', requireAdmin, asyncRoute(async (req, res) => {
 app.get('/api/dashboard/summary', requireAdmin, asyncRoute(async (_req, res) => {
   const [{ rows: totals }, { rows: repairTotals }, { rows: weekly }, { rows: weeklyRepairs }] = await Promise.all([
     pool.query(`SELECT
-      COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('month', NOW()) AND payment_status = 'approved'), 0)::numeric AS monthly_revenue,
+      COALESCE(SUM(total - payment_refunded_amount) FILTER (WHERE created_at >= date_trunc('month', NOW()) AND payment_status IN ('approved', 'partially_refunded')), 0)::numeric AS monthly_revenue,
       COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW()))::int AS orders_this_month,
       COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int AS orders_today,
       COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_orders,
@@ -276,7 +276,7 @@ app.get('/api/dashboard/summary', requireAdmin, asyncRoute(async (_req, res) => 
       COALESCE(SUM(value) FILTER (WHERE status = 'repaired' AND created_at >= date_trunc('month', NOW())), 0)::numeric AS monthly_repair_revenue
       FROM repairs WHERE created_at >= ${retentionCutoff}`),
     pool.query(`SELECT days.day::date AS day, TO_CHAR(days.day, 'Dy') AS label,
-      COALESCE(SUM(orders.total) FILTER (WHERE orders.payment_status = 'approved'), 0)::numeric AS revenue
+      COALESCE(SUM(orders.total - orders.payment_refunded_amount) FILTER (WHERE orders.payment_status IN ('approved', 'partially_refunded')), 0)::numeric AS revenue
       FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS days(day)
       LEFT JOIN orders ON orders.created_at >= days.day AND orders.created_at < days.day + INTERVAL '1 day'
       GROUP BY days.day ORDER BY days.day`),

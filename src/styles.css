@@ -1265,3 +1265,6 @@ button.product-visual { display: block; width: 100%; border: 0; padding: 0; text
   .floating-cart { transition: none; }
   .cart-backdrop, .cart-panel, .cart-backdrop.cart-closing, .cart-closing .cart-panel { animation: none; }
 }
+.order-mp-id { max-width: 210px; white-space: normal; line-height: 1.5; }
+.order-mp-id span, .test-order-id { display: block; overflow-wrap: anywhere; user-select: all; }
+.test-order-id { margin-top: 8px; font-size: 12px; }
