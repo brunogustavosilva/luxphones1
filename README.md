@@ -1,4 +1,4 @@
-# luxphones1
+# Lux Baterias
 
 Loja responsiva de smartphones com painel de operação em React, API Express e PostgreSQL no Neon. O catálogo, estoque, pedidos, métricas e tentativas de autenticação ficam no banco.
 
@@ -53,40 +53,39 @@ A visão geral carrega apenas os cinco pedidos recentes; as listas de pedidos e 
 
 A vitrine tem filtros separados por marca e tipo de produto: smartphones, carregadores, fones de ouvido, capinhas, computadores e notebooks. Os produtos existentes são classificados como smartphones; altere a categoria no formulário de edição. Novas categorias aparecem mesmo sem produtos cadastrados, sem inserir estoque fictício.
 
-O carrinho permite adicionar, remover e ajustar quantidades, e guarda apenas IDs e quantidades no navegador. No checkout, o cliente informa nome, WhatsApp e e-mail. Preços e disponibilidade são conferidos no servidor; os valores enviados pelo navegador não definem a cobrança. O pagamento usa o redirecionamento do Checkout Pro via **Orders API** do Mercado Pago. Novos checkouts são criados com `POST /v1/orders`, guardam `mp_order_id` e são consultados por `GET /v1/orders/{id}`. Pedidos anteriores sem `mp_order_id` mantêm a consulta via Payments/Preferences. A Public Key não é necessária nesse fluxo, pois não há coleta de cartão na aplicação.
+O carrinho permite adicionar, remover e ajustar quantidades, e guarda apenas IDs e quantidades no navegador. No checkout, o cliente informa nome, WhatsApp, e-mail e endereço. Preços e disponibilidade são conferidos no servidor; os valores enviados pelo navegador não definem a cobrança. O pagamento usa o Checkout PagBank hospedado: a API cria o checkout e redireciona o cliente para o link seguro retornado pelo PagBank. O status é consultado no servidor e confirmado com webhook autenticado. Pedidos anteriores do Mercado Pago continuam identificados e consultáveis durante a transição, se as credenciais MP antigas permanecerem configuradas.
 
 A entrega/retirada é combinada pelo WhatsApp. O checkout cobra os produtos, sem calcular ou incluir frete. Não há cálculo de entrega nem coleta de endereço nesta versão.
 
-Pedidos exibem cliente, WhatsApp, descrição da compra, valor, pagamento e operação. Pagamentos online são confirmados exclusivamente pela API do Mercado Pago; o painel permite atualizar a consulta, enviar e entregar depois da aprovação. Pedidos de balcão permitem registro manual de recebimento. A receita de vendas considera pagamentos aprovados e desconta os valores confirmados de reembolsos parciais. O tema claro mantém a aparência existente, e o tema escuro usa carvão e dourado; a escolha é salva no navegador.
+Pedidos exibem cliente, WhatsApp, descrição da compra, valor, pagamento e operação. Pagamentos online são confirmados exclusivamente pela API do provedor associado ao pedido; o painel permite atualizar a consulta, enviar e entregar depois da aprovação. Pedidos de balcão permitem registro manual de recebimento. A receita de vendas considera pagamentos aprovados e desconta os valores confirmados de reembolsos parciais. O tema claro mantém a aparência existente, e o tema escuro usa carvão e dourado; a escolha é salva no navegador.
 
-## Mercado Pago no localhost
+## PagBank no localhost
 
 Configure as variáveis de servidor em `.env.local`:
 
 ```dotenv
-MP_ACCESS_TOKEN=token-da-conta-vendedora-de-teste
-MP_ENV=test
+PAGBANK_ACCESS_TOKEN=token-de-sandbox-do-pagbank
+PAGBANK_ENV=sandbox
 SITE_URL=http://localhost:5173
-MP_WEBHOOK_URL=
-MP_WEBHOOK_SECRET=
+PAGBANK_WEBHOOK_URL=
 ```
 
-O servidor verifica se a conta vendedora realmente é de teste antes de criar o checkout. Tokens de contas de teste do Checkout Pro também podem começar por `APP_USR`; o prefixo sozinho não determina o ambiente. Nunca coloque o Access Token em uma variável `VITE_*`, código de frontend ou arquivo versionado. Use uma conta compradora de teste diferente da vendedora e os meios de pagamento de teste fornecidos pelo Mercado Pago.
+Gere o token de sandbox no portal de desenvolvedores PagBank. Nunca coloque o Access Token em uma variável `VITE_*`, no frontend ou em arquivo versionado. O servidor usa `https://sandbox.api.pagseguro.com` quando `PAGBANK_ENV=sandbox` e `https://api.pagseguro.com` quando `PAGBANK_ENV=production`.
 
-No localhost, clique no retorno à loja no Checkout Pro depois de pagar. A confirmação é consultada diretamente no provedor ao retornar, e pode ser atualizada no site ou no painel. Consultas repetidas são limitadas e reutilizam o resultado por 15 segundos. Não há polling contínuo. O Mercado Pago não consegue enviar webhooks para localhost; por isso, pagamentos concluídos sem retorno exigem a ação **Atualizar pagamento** no painel.
+No localhost, retorne à loja pelo checkout PagBank depois do pagamento e use **Atualizar pagamento** se a confirmação ainda estiver pendente. Webhooks não chegam a um endereço local; para recebê-los, exponha uma URL HTTPS pública e configure-a em `PAGBANK_WEBHOOK_URL`. A assinatura `x-authenticity-token` é verificada pelo token da conta e pelos bytes exatos do corpo antes de a API consultar o recurso autenticado no PagBank.
 
-A API reaproveita o pedido para tentativas com a mesma chave e os mesmos dados de checkout. O link de checkout tem validade de 24 horas. O estoque é abatido uma única vez após a confirmação, dentro de uma transação. Não há reserva de estoque durante o pagamento: se outro comprador consumir as últimas unidades, o pedido aprovado é sinalizado e o envio bloqueado para a equipe conferir a disponibilidade. Uma confirmação de reembolso não repõe estoque automaticamente: ajuste-o após a devolução física. Uma segunda cobrança aprovada no mesmo pedido também é sinalizada para conferência no Mercado Pago.
+O checkout expira após 24 horas. O estoque é abatido uma única vez após a confirmação, dentro de uma transação. Não há reserva de estoque durante o pagamento: se outro comprador consumir as últimas unidades, o pedido aprovado é sinalizado e o envio bloqueado para a equipe conferir a disponibilidade. Uma confirmação de reembolso não repõe estoque automaticamente: ajuste-o após a devolução física. Uma segunda cobrança aprovada no mesmo pedido também é sinalizada para conferência.
 
 ## Implantação de pagamentos
 
-1. Execute `npm run db:migrate` para aplicar as alterações aditivas de categorias e pedidos. O comando usa a conexão direta; a API continua usando a pooled. A inicialização da API também aplica as migrações de forma idempotente.
+1. Execute `npm run db:migrate` para aplicar as alterações aditivas de categorias, pedidos e identificador do checkout PagBank. O comando usa a conexão direta; a API continua usando a pooled. A inicialização da API também aplica as migrações de forma idempotente.
 2. Configure `SITE_URL` com o domínio público HTTPS.
-3. No painel do Mercado Pago, configure os eventos **Order (Mercado Pago)** para novos pedidos e **Pagamentos** para pedidos antigos para `https://SEU-DOMINIO/api/payments/webhook` e obtenha a chave de assinatura. Defina a mesma URL em `MP_WEBHOOK_URL` e a chave em `MP_WEBHOOK_SECRET`.
-4. Para cobrar de verdade, substitua o token por credenciais de produção e configure `MP_ENV=production`. Reinicie a API depois de alterar as variáveis. O servidor recusa contas de teste no modo de produção.
+3. Configure o webhook HTTPS `https://SEU-DOMINIO/api/payments/webhook` como URL de notificação de pagamentos no PagBank e defina o mesmo endereço em `PAGBANK_WEBHOOK_URL`.
+4. Para cobrar de verdade, configure o token de produção e `PAGBANK_ENV=production`. Reinicie ou faça redeploy após alterar as variáveis.
 
-O webhook verifica a assinatura HMAC e consulta o pagamento no Mercado Pago antes de atualizar o pedido. A confirmação exige correspondência de referência, valor, moeda, recebedor e ambiente. Alterar parâmetros na URL de retorno nunca marca um pedido como pago. Reembolsos e contestações são refletidos ao receber uma notificação ou atualizar o pagamento. A retenção de três meses continua valendo para pedidos online e de balcão.
+O webhook verifica o SHA-256 do corpo bruto com o token PagBank e consulta o pedido no provedor antes de atualizar o banco. A confirmação exige correspondência da referência, do total e da moeda. Alterar parâmetros na URL de retorno nunca marca um pedido como pago. Reembolsos e contestações são refletidos ao receber uma notificação ou atualizar o pagamento. A retenção de três meses continua valendo para pedidos online e de balcão.
 
-Referências oficiais: [Checkout Pro](https://www.mercadopago.com.br/developers/en/reference/online-payments/checkout-pro-preferences/overview), [contas de teste](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-preferences/test-accounts), [notificações e assinatura](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-preferences/payment-notifications).
+Referências oficiais: [Criar Checkout](https://developer.pagbank.com.br/reference/criar-checkout), [Consultar Checkout](https://developer.pagbank.com.br/reference/consultar-checkout), [Webhooks Checkout](https://developer.pagbank.com.br/reference/webhooks-checkout), [autenticidade da notificação](https://developer.pagbank.com.br/reference/confirmar-autenticidade-da-notificacao).
 
 Os testes em `server/commerce-policy.test.js` cobrem validação do carrinho, preços, estoque, ambiente e assinatura. `server/commerce.integration.test.js` cobre migração, checkout concorrente, pagamentos e retenção no PostgreSQL isolado; é ignorado quando `COMMERCE_TEST_DATABASE_URL` não está definida e exige `COMMERCE_TEST_BRANCH_HOST` com o hostname exato da branch isolada. O teste nunca usa `DATABASE_URL` como fallback.
 
@@ -99,7 +98,8 @@ No projeto da Vercel, em **Settings → Environment Variables**, configure para 
 - `DATABASE_URL`: conexão pooled do banco Neon existente, igual à usada localmente. Nunca use o prefixo `VITE_` para segredos.
 - `JWT_SECRET`: segredo com pelo menos 32 caracteres. Deve permanecer estável para as sessões continuarem válidas.
 - `SITE_URL`: `https://luxphones1-odpn.vercel.app`.
-- Para checkout: `MP_ACCESS_TOKEN`, `MP_ENV` (`test` enquanto usar a conta de teste), `MP_WEBHOOK_URL` e `MP_WEBHOOK_SECRET` quando as notificações estiverem configuradas.
+- Para novos checkouts: `PAGBANK_ACCESS_TOKEN`, `PAGBANK_ENV` (`sandbox` durante os testes) e `PAGBANK_WEBHOOK_URL`.
+- Para atualizar pedidos Mercado Pago antigos ainda pendentes: mantenha temporariamente `MP_ACCESS_TOKEN`, `MP_ENV` e, se receber notificações MP, `MP_WEBHOOK_SECRET`.
 
 O `.env.local` não é enviado ao GitHub e não configura automaticamente a Vercel. Após cadastrar ou alterar variáveis, faça **Redeploy**. Use a raiz do repositório como Root Directory, preset **Vite**, build `npm run build` e saída `dist`.
 
@@ -109,16 +109,8 @@ Para verificar o deploy, abra `/api/health`: deve retornar `{"status":"ok","data
 
 Referência: [Vite e funções na Vercel](https://vercel.com/docs/frameworks/frontend/vite).
 
-Para testar o checkout publicado, mantenha `MP_ENV=test` e `SITE_URL=https://luxphones1-odpn.vercel.app`. A API recusa um endereço de retorno HTTP/localhost quando executa na Vercel. Configure `MP_WEBHOOK_URL=https://luxphones1-odpn.vercel.app/api/payments/webhook` junto com `MP_WEBHOOK_SECRET`, obtido no painel do Mercado Pago. Valide o status pelo retorno à loja/Atualizar pagamento e configure o evento Order (Mercado Pago) para receber notificações da Orders API. Use o simulador do painel do Mercado Pago para conferir a assinatura e a recepção do webhook.
+Para testar o checkout publicado, use o token de sandbox com `PAGBANK_ENV=sandbox` e `SITE_URL=https://luxphones1-odpn.vercel.app`. Configure `PAGBANK_WEBHOOK_URL=https://luxphones1-odpn.vercel.app/api/payments/webhook` no ambiente do PagBank e na Vercel. Faça uma nova compra, retorne à loja e valide também com **Atualizar pagamento**; o webhook deve chegar com o header `x-authenticity-token`.
 
-## Orders API e avaliação da integração
+## Transição do Mercado Pago
 
-Após atualizar esta versão, execute `npm run db:migrate` antes do deploy. A migração `002-orders-api.sql` adiciona `mp_order_id` e o valor de reembolso sem apagar ou converter os pedidos existentes.
-
-Novos pagamentos usam uma order `online`, com processamento `manual`, captura `automatic_async`, preços em strings decimais e chave de idempotência por checkout. O código verifica o Order ID, referência, conta vendedora, moeda e valores antes de confirmar o pagamento. Estados pendentes, em análise e autorizados não são marcados como pagos. A baixa de estoque continua transacional e ocorre uma única vez.
-
-O painel mostra o **Order ID** completo nos pedidos novos; a página de retorno também mostra esse ID no modo de teste. Para a avaliação de qualidade, faça uma **nova compra de teste após o deploy**, aguarde a aprovação e copie esse identificador. IDs de ordens comerciais dos pagamentos antigos e Payment IDs não substituem o ID `ORD…`/`ORDTST…` da Orders API.
-
-No Mercado Pago, habilite **Order (Mercado Pago)** (tópico `orders_v2`, notificações com `type=order`) para `https://luxphones1-odpn.vercel.app/api/payments/webhook`. Mantenha o evento **Pagamentos** se ainda precisar atualizar checkouts antigos. Configure a chave da mesma aplicação em `MP_WEBHOOK_SECRET` na Vercel e faça Redeploy após alterar variáveis. A assinatura é verificada antes de consultar a order no provedor; estados informados pelo navegador ou pelo corpo do webhook nunca confirmam pagamento.
-
-Referências: [criação de order](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-orders/create-order), [URLs de retorno](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-orders/web-integration/configure-back-urls), [notificações Orders](https://www.mercadopago.com.br/developers/en/docs/checkout-pro-orders/notifications).
+Novos pedidos usam PagBank. Pedidos Mercado Pago existentes mantêm a origem e os identificadores originais; para continuar sincronizando esses pedidos, conserve `MP_ACCESS_TOKEN` e configure `MP_WEBHOOK_SECRET` até que não haja mais pagamentos pendentes. Remover essas variáveis não apaga histórico, mas desativa a consulta e as notificações MP.

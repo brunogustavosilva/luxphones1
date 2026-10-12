@@ -47,7 +47,7 @@ export function priceCart(requested, products) {
     const unitCents = Math.round(Number(product.price) * 100);
     if (!Number.isSafeInteger(unitCents) || unitCents <= 0) throw problem(`${product.name} não está disponível para pagamento online.`, 409);
     cents += unitCents * quantity;
-    return { product_id, name: product.name, sku: product.sku, quantity, unit_price: unitCents / 100 };
+    return { product_id, name: product.name, description: product.description || '', sku: product.sku, quantity, unit_price: unitCents / 100 };
   });
   if (!Number.isSafeInteger(cents) || cents > 999999999999) throw problem('Valor do carrinho inválido.');
   return { items, total: cents / 100 };

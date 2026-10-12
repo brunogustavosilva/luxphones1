@@ -71,8 +71,8 @@ export function Cart({ cart, products, onQuantity, onRemove, onClose }) {
           <p className="checkout-note">Entrega ou retirada combinada com a loja pelo WhatsApp. O total inclui os produtos; frete, se necessário, é combinado separadamente.</p>
           {invalid && <p className="cart-warning" role="alert">Revise os itens indisponíveis e as quantidades antes de continuar.</p>}
           {error && <p className="cart-warning" role="alert">{error}</p>}
-          <button className="button button-dark checkout-button" disabled={busy || invalid}><CreditCard size={17}/>{busy ? 'Preparando pagamento…' : 'Pagar com Mercado Pago'}<ArrowRight size={16}/></button>
-          <p className="checkout-security">Pagamento processado com segurança pelo Mercado Pago.</p>
+          <button className="button button-dark checkout-button" disabled={busy || invalid}><CreditCard size={17}/>{busy ? 'Preparando pagamento…' : 'Pagar com PagBank'}<ArrowRight size={16}/></button>
+          <p className="checkout-security">Pagamento processado com segurança pelo PagBank.</p>
         </form>
       </>}
     </section>
@@ -95,7 +95,7 @@ export function PaymentReturn({ token, onApproved, onDismiss }) {
   useEffect(() => { sync(); }, [token]);
   const saved = readStored('luxphone-checkout', null, sessionStorage);
   return <section className="payment-return wrap" role="status">
-    <div><p className="eyebrow">SEU PEDIDO {order ? `#${order.id}` : ''}</p><h2>{order ? paymentLabels[order.payment_status] || 'Aguardando confirmação' : 'Consultando seu pagamento…'}</h2><p>{order?.payment_status === 'approved' ? 'Recebemos seu pagamento. Nossa equipe combinará os próximos passos pelo WhatsApp.' : 'A confirmação é consultada diretamente no Mercado Pago. Se você acabou de pagar, aguarde alguns instantes e atualize.'}</p>{order?.test_mode && <small>Compra no ambiente de teste.{order.mp_order_id && <span className="test-order-id">Order ID: {order.mp_order_id}</span>}</small>}{order?.stock_issue && <p>A equipe entrará em contato para confirmar a disponibilidade dos itens.</p>}{error && <p className="cart-warning">{error}</p>}</div>
+    <div><p className="eyebrow">SEU PEDIDO {order ? `#${order.id}` : ''}</p><h2>{order ? paymentLabels[order.payment_status] || 'Aguardando confirmação' : 'Consultando seu pagamento…'}</h2><p>{order?.payment_status === 'approved' ? 'Recebemos seu pagamento. Nossa equipe combinará os próximos passos pelo WhatsApp.' : `A confirmação é consultada diretamente no ${order?.provider === 'mercado_pago' ? 'Mercado Pago' : 'PagBank'}. Se você acabou de pagar, aguarde alguns instantes e atualize.`}</p>{order?.test_mode && <small>Compra no ambiente de teste.{order.provider_reference && <span className="test-order-id">Referência: {order.provider_reference}</span>}</small>}{order?.stock_issue && <p>A equipe entrará em contato para confirmar a disponibilidade dos itens.</p>}{error && <p className="cart-warning">{error}</p>}</div>
     <div className="payment-return-actions"><button className="button button-outline" disabled={busy} onClick={sync}>{busy ? 'Consultando…' : 'Atualizar pagamento'}</button>{order && ['pending', 'rejected', 'cancelled'].includes(order.payment_status) && saved?.token === token && <a className="button button-dark" href={saved.url}>Continuar pagamento</a>}<button className="cart-icon" onClick={onDismiss} aria-label="Fechar informação do pedido"><X size={20}/></button></div>
   </section>;
 }

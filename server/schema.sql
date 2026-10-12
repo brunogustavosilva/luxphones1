@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 CREATE TABLE IF NOT EXISTS products (
   id BIGSERIAL PRIMARY KEY,
   name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
   sku TEXT NOT NULL UNIQUE,
   category TEXT NOT NULL,
   price NUMERIC(12, 2) NOT NULL CHECK (price >= 0),

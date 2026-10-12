@@ -43,7 +43,7 @@ export function preferenceBody(order, siteUrl, webhookUrl) {
     back_urls: { success: returnUrl.href, pending: returnUrl.href, failure: returnUrl.href },
     expires: true,
     expiration_date_to: new Date(new Date(order.created_at).getTime() + 24 * 60 * 60 * 1000).toISOString(),
-    statement_descriptor: 'LUXPHONES',
+    statement_descriptor: 'LUX BATERIAS',
   };
   // Mercado Pago requires HTTPS for automatic returns and notifications.
   if (returnUrl.protocol === 'https:') result.auto_return = 'approved';

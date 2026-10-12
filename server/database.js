@@ -19,10 +19,10 @@ export const pool = new Pool({
 });
 
 const fixtures = [
-  ['iPhone 16 Pro', 'APL-16P', 'Apple', 7899, 8, 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=900&q=85'],
-  ['Galaxy S25 Ultra', 'SAM-S25U', 'Samsung', 7299, 5, 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=900&q=85'],
-  ['iPhone 15', 'APL-15', 'Apple', 4599, 12, 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=900&q=85'],
-  ['Pixel 9 Pro', 'GOO-P9P', 'Google', 6199, 4, 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=900&q=85'],
+  ['iPhone 16 Pro', 'APL-16P', 'Apple', 7899, 8, 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=900&q=85', 'Tela Super Retina XDR de 6,3 polegadas, chip A18 Pro e sistema de câmeras avançado. Produto novo, lacrado e com garantia Apple.'],
+  ['Galaxy S25 Ultra', 'SAM-S25U', 'Samsung', 7299, 5, 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=900&q=85', 'Smartphone premium com tela ampla, S Pen integrada e recursos Galaxy AI. Produto novo, lacrado e com garantia de fábrica.'],
+  ['iPhone 15', 'APL-15', 'Apple', 4599, 12, 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=900&q=85', 'Tela Super Retina XDR de 6,1 polegadas, câmera principal de 48 MP e conexão USB-C. Aparelho revisado e pronto para uso.'],
+  ['Pixel 9 Pro', 'GOO-P9P', 'Google', 6199, 4, 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=900&q=85', 'Câmeras Pixel com processamento inteligente, tela LTPO OLED e recursos de IA do Google. Aparelho desbloqueado e revisado.'],
 ];
 
 export async function initializeDatabase() {
@@ -40,7 +40,7 @@ export async function initializeDatabase() {
   if (rows[0].count === 0) {
     for (const product of fixtures) {
       await pool.query(
-        'INSERT INTO products (name, sku, category, price, stock, image_url) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (sku) DO NOTHING',
+        'INSERT INTO products (name, sku, category, price, stock, image_url, description) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (sku) DO NOTHING',
         product,
       );
     }

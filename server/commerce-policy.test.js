@@ -15,10 +15,11 @@ test('checkout normalizes contact and rejects malformed or excessive quantities'
 });
 test('server prices override client data, sum in cents, and enforce available stock', () => {
   const requested = [{ product_id: '1', quantity: 3, unit_price: 0.01 }];
-  const product = { id: '1', name: 'Capinha', sku: 'CASE', price: '19.90', stock: 3, active: true };
+  const product = { id: '1', name: 'Capinha', description: 'Proteção reforçada.', sku: 'CASE', price: '19.90', stock: 3, active: true };
   const result = priceCart(requested, [product]);
   assert.equal(result.total, 59.7);
   assert.equal(result.items[0].unit_price, 19.9);
+  assert.equal(result.items[0].description, 'Proteção reforçada.');
   assert.throws(() => priceCart(requested, [{ ...product, stock: 2 }]), /Estoque insuficiente/);
   assert.throws(() => priceCart(requested, [{ ...product, active: false }]), /disponível/);
 });

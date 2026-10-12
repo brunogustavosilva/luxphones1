@@ -27,7 +27,7 @@ if (isProduction && jwtSecret.length < 32) throw new Error('JWT_SECRET precisa t
 app.disable('x-powered-by');
 app.set('trust proxy', process.env.TRUST_PROXY === 'true');
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(express.json({ limit: '32kb' }));
+app.use(express.json({ limit: '32kb', verify: (req, _res, buffer) => { req.rawBody = buffer.toString('utf8'); } }));
 app.use(cookieParser());
 
 function requireAdmin(req, res, next) {
@@ -138,33 +138,33 @@ app.get('/api/products', asyncRoute(async (req, res) => {
     catch { return res.status(401).json({ error: 'Acesso não autorizado.' }); }
   }
   const { rows } = await pool.query(
-    `SELECT id, name, sku, category, price, stock, image_url, product_type, created_at, updated_at
+    `SELECT id, name, description, sku, category, price, stock, image_url, product_type, created_at, updated_at
      FROM products WHERE active = TRUE ORDER BY created_at DESC`,
   );
   res.json(rows);
 }));
 
 app.post('/api/products', requireAdmin, asyncRoute(async (req, res) => {
-  const { name, sku, category, price, stock = 0, image_url = '', product_type = 'smartphones' } = req.body || {};
-  if (!productTypes.includes(product_type) || !name?.trim() || !sku?.trim() || !category?.trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) {
+  const { name, description, sku, category, price, stock = 0, image_url = '', product_type = 'smartphones' } = req.body || {};
+  if (!productTypes.includes(product_type) || !name?.trim() || typeof description !== 'string' || !description.trim() || description.length > 3000 || !sku?.trim() || !category?.trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) {
     return res.status(400).json({ error: 'Revise os campos do produto.' });
   }
   const { rows } = await pool.query(
-    'INSERT INTO products (name, sku, category, price, stock, image_url, product_type) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-    [name.trim(), sku.trim(), category.trim(), price, stock, String(image_url), product_type],
+    'INSERT INTO products (name, description, sku, category, price, stock, image_url, product_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+    [name.trim(), description.trim(), sku.trim(), category.trim(), price, stock, String(image_url), product_type],
   );
   res.status(201).json(rows[0]);
 }));
 
 app.put('/api/products/:id', requireAdmin, asyncRoute(async (req, res) => {
-  const { name, sku, category, price, stock = 0, image_url = '', product_type = 'smartphones' } = req.body || {};
-  if (!productTypes.includes(product_type) || !name?.trim() || !sku?.trim() || !category?.trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) {
+  const { name, description, sku, category, price, stock = 0, image_url = '', product_type = 'smartphones' } = req.body || {};
+  if (!productTypes.includes(product_type) || !name?.trim() || typeof description !== 'string' || !description.trim() || description.length > 3000 || !sku?.trim() || !category?.trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) {
     return res.status(400).json({ error: 'Revise os campos do produto.' });
   }
   const { rows } = await pool.query(
-    `UPDATE products SET name = $1, sku = $2, category = $3, price = $4, stock = $5,
-     image_url = $6, product_type = $7, updated_at = NOW() WHERE id = $8 AND active = TRUE RETURNING id`,
-    [name.trim(), sku.trim(), category.trim(), price, stock, String(image_url), product_type, req.params.id],
+    `UPDATE products SET name = $1, description = $2, sku = $3, category = $4, price = $5, stock = $6,
+     image_url = $7, product_type = $8, updated_at = NOW() WHERE id = $9 AND active = TRUE RETURNING id`,
+    [name.trim(), description.trim(), sku.trim(), category.trim(), price, stock, String(image_url), product_type, req.params.id],
   );
   if (!rows[0]) return res.status(404).json({ error: 'Produto não encontrado.' });
   res.json(rows[0]);
@@ -187,13 +187,13 @@ app.use(['/api/orders', '/api/repairs', '/api/dashboard'], requireAdmin, asyncRo
 
 app.get('/api/orders', requireAdmin, asyncRoute(async (req, res) => {
   const limit = req.query.recent === 'true' ? 5 : 100;
-  const { rows } = await pool.query(`SELECT id, customer_name, customer_whatsapp, purchase_description, total, status, payment_status, source, mp_order_id, stock_issue, payment_issue, created_at FROM orders WHERE created_at >= ${retentionCutoff} ORDER BY created_at DESC, id DESC LIMIT $1`, [limit]);
+  const { rows } = await pool.query(`SELECT id, customer_name, customer_whatsapp, purchase_description, total, status, payment_status, source, mp_order_id, pagbank_checkout_id, stock_issue, payment_issue, created_at FROM orders WHERE created_at >= ${retentionCutoff} ORDER BY created_at DESC, id DESC LIMIT $1`, [limit]);
   res.json(rows);
 }));
 
 app.get('/api/orders/:id', requireAdmin, asyncRoute(async (req, res) => {
   if (!/^\d{1,18}$/.test(req.params.id)) throw problem('Pedido inválido.');
-  const { rows } = await pool.query(`SELECT id, customer_name, customer_whatsapp, customer_email, customer_address, customer_complement, customer_zipcode, purchase_description, items, total, payment_status, status, mp_order_id, payment_refunded_amount, created_at FROM orders WHERE id = $1 AND created_at >= ${retentionCutoff}`, [req.params.id]);
+  const { rows } = await pool.query(`SELECT id, customer_name, customer_whatsapp, customer_email, customer_address, customer_complement, customer_zipcode, purchase_description, items, source, total, payment_status, status, mp_order_id, pagbank_checkout_id, payment_refunded_amount, created_at FROM orders WHERE id = $1 AND created_at >= ${retentionCutoff}`, [req.params.id]);
   if (!rows.length) throw problem('Pedido não encontrado.', 404);
   res.json(rows[0]);
 }));
@@ -201,12 +201,20 @@ app.get('/api/orders/:id', requireAdmin, asyncRoute(async (req, res) => {
 registerCommerce(app, { pool, requireAdmin, asyncRoute, cleanupHistory });
 
 app.post('/api/orders', requireAdmin, asyncRoute(async (req, res) => {
-  const { customer_name, customer_whatsapp, purchase_description, total, status = 'pending', payment_status = 'pending' } = req.body || {};
+  const { customer_name, customer_whatsapp, purchase_description, product_id, total, status = 'pending', payment_status = 'pending' } = req.body || {};
   if (typeof customer_name !== 'string' || !customer_name.trim() || customer_name.length > 120 || typeof purchase_description !== 'string' || !purchase_description.trim() || purchase_description.length > 1000 || !Number.isFinite(Number(total)) || Number(total) <= 0 || !validStatuses.includes(status) || !['pending', 'approved'].includes(payment_status)) throw problem('Revise os dados do pedido.');
   if (['paid', 'shipped', 'delivered'].includes(status) && payment_status !== 'approved') throw problem('Confirme o pagamento antes de marcar o pedido como pago ou enviado.');
+  let items = [];
+  if (product_id) {
+    if (!/^\d{1,18}$/.test(String(product_id))) throw problem('Produto inválido.');
+    const { rows: products } = await pool.query('SELECT id, name, description, sku, price FROM products WHERE id = $1 AND active = TRUE', [product_id]);
+    if (!products[0]) throw problem('Produto não encontrado.');
+    const product = products[0];
+    items = [{ product_id: String(product.id), name: product.name, description: product.description || '', sku: product.sku, quantity: 1, unit_price: Number(product.price) }];
+  }
   const { rows } = await pool.query(
-    'INSERT INTO orders (customer_name, customer_whatsapp, purchase_description, total, status, payment_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-    [customer_name.trim(), whatsapp(customer_whatsapp), purchase_description.trim(), total, payment_status === 'approved' && status === 'pending' ? 'paid' : status, payment_status],
+    'INSERT INTO orders (customer_name, customer_whatsapp, purchase_description, items, total, status, payment_status) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7) RETURNING id',
+    [customer_name.trim(), whatsapp(customer_whatsapp), purchase_description.trim(), JSON.stringify(items), total, payment_status === 'approved' && status === 'pending' ? 'paid' : status, payment_status],
   );
   res.status(201).json(rows[0]);
 }));
@@ -223,7 +231,7 @@ app.patch('/api/orders/:id', requireAdmin, asyncRoute(async (req, res) => {
     const { rows } = await client.query(`SELECT id, source, status, payment_status, stock_issue, payment_issue FROM orders WHERE id = $1 AND created_at >= ${retentionCutoff} FOR UPDATE`, [req.params.id]);
     const order = rows[0];
     if (!order) throw problem('Pedido não encontrado.', 404);
-    if (order.source === 'mercado_pago' && (paymentStatus !== undefined || ['paid', 'cancelled'].includes(status))) throw problem('O pagamento online é atualizado pelo Mercado Pago.');
+    if (['mercado_pago', 'pagbank'].includes(order.source) && (paymentStatus !== undefined || ['paid', 'cancelled'].includes(status))) throw problem('O pagamento online é atualizado pelo provedor de pagamento.');
     const nextPayment = paymentStatus ?? order.payment_status;
     let nextStatus = status ?? order.status;
     if (['paid', 'shipped', 'delivered'].includes(nextStatus) && nextPayment !== 'approved') {
@@ -333,7 +341,7 @@ if (isProduction && standalone) {
 // migrations and seed data are not repeated on every serverless cold start.
 if (standalone) {
   initializeDatabase()
-    .then(() => app.listen(port, '0.0.0.0', () => console.log(`LUXPHONES disponível na porta ${port}`)))
+    .then(() => app.listen(port, '0.0.0.0', () => console.log(`Lux Baterias disponível na porta ${port}`)))
     .catch((error) => {
       console.error('Não foi possível iniciar com o PostgreSQL:', error.code || error.name);
       process.exit(1);
