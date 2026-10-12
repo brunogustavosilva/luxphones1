@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, CreditCard, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { currency, paymentLabels, request, writeStored, readStored } from './commerce.js';
 
-function useDialog(ref, onClose) {
+export function useDialog(ref, onClose) {
   useEffect(() => {
     const previous = document.activeElement;
     const previousOverflow = document.body.style.overflow;
@@ -67,6 +67,7 @@ export function Cart({ cart, products, onQuantity, onRemove, onClose }) {
         </article>)}</div>
         <div className="cart-total"><span>Total dos produtos</span><strong>{currency(total)}</strong></div>
         <form className="checkout-form" onSubmit={checkout}><p className="eyebrow">DADOS DO CLIENTE</p><label>Nome completo<input name="customer_name" autoComplete="name" required minLength={2} maxLength={120} placeholder="Como podemos chamar você?"/></label><label>WhatsApp com DDD<input name="customer_whatsapp" type="tel" autoComplete="tel" required minLength={10} maxLength={20} placeholder="(41) 99999-9999"/></label><label>E-mail<input name="customer_email" type="email" autoComplete="email" required maxLength={160} placeholder="voce@email.com"/></label>
+          <p className="eyebrow">ENDEREÇO</p><label>CEP<input name="customer_zipcode" autoComplete="postal-code" inputMode="numeric" required pattern="[0-9]{5}-?[0-9]{3}" maxLength={9} placeholder="00000-000"/></label><label>Endereço completo<input name="customer_address" autoComplete="street-address" required minLength={5} maxLength={300} placeholder="Rua, número, bairro, cidade e estado"/></label><label>Complemento <small>(opcional)</small><input name="customer_complement" autoComplete="address-line2" maxLength={160} placeholder="Apartamento, bloco ou ponto de referência"/></label>
           <p className="checkout-note">Entrega ou retirada combinada com a loja pelo WhatsApp. O total inclui os produtos; frete, se necessário, é combinado separadamente.</p>
           {invalid && <p className="cart-warning" role="alert">Revise os itens indisponíveis e as quantidades antes de continuar.</p>}
           {error && <p className="cart-warning" role="alert">{error}</p>}

@@ -21,6 +21,9 @@ test('commerce migration and checkout/payment/retention against isolated Postgre
   await pool.query("INSERT INTO orders(customer_name,total,status) VALUES ('Legacy',100,'paid')");
   await pool.query(migration);
   await pool.query(migration);
+  const addressMigration = await readFile(new URL('./migrations/003-order-address.sql', import.meta.url), 'utf8');
+  await pool.query(addressMigration);
+  await pool.query(addressMigration);
   const ordersMigration = await readFile(new URL('./migrations/002-orders-api.sql', import.meta.url), 'utf8');
   await pool.query(ordersMigration);
   await pool.query(ordersMigration);
@@ -50,7 +53,7 @@ test('commerce migration and checkout/payment/retention against isolated Postgre
   const origin = `http://127.0.0.1:${server.address().port}`;
   async function call(path, body, headers={}) { const response=await fetch(origin+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}); return { status:response.status, data:await response.json().catch(()=>null) }; }
   try {
-    const input={ customer_name:'Cliente Teste', customer_whatsapp:'41999999999', customer_email:'cliente@example.com', checkout_key:randomUUID(), items:[{product_id:String(product.id),quantity:2,price:0.01}] };
+    const input={ customer_name:'Cliente Teste', customer_whatsapp:'41999999999', customer_email:'cliente@example.com', customer_address:'Rua Teste, 10, Centro, Curitiba PR', customer_zipcode:'80000-000', checkout_key:randomUUID(), items:[{product_id:String(product.id),quantity:2,price:0.01}] };
     const results=await Promise.all([call('/api/checkout',input),call('/api/checkout',input)]);
     for(const result of results) assert.equal(result.status,201,JSON.stringify(result.data));
     assert.equal(creations,1);
@@ -58,7 +61,10 @@ test('commerce migration and checkout/payment/retention against isolated Postgre
     assert.equal(results[0].data.order_token,results[1].data.order_token);
     assert.equal(checkoutInput.items[0].unit_price,'19.90');
     assert.equal((await call('/api/checkout',{...input,customer_name:'Changed'})).status,409);
-    const {rows:[order]}=await pool.query('SELECT id, total, customer_whatsapp, items FROM orders WHERE checkout_key=$1',[input.checkout_key]);
+    const {rows:[order]}=await pool.query('SELECT id, total, customer_whatsapp, customer_address, customer_complement, customer_zipcode, items FROM orders WHERE checkout_key=$1',[input.checkout_key]);
+    assert.equal(order.customer_address, input.customer_address);
+    assert.equal(order.customer_zipcode, '80000000');
+    assert.equal(order.customer_complement, '');
     assert.equal(Number(order.total),39.8);
     assert.equal(order.customer_whatsapp,'5541999999999');
     const token=results[0].data.order_token;

@@ -1268,3 +1268,28 @@ button.product-visual { display: block; width: 100%; border: 0; padding: 0; text
 .order-mp-id { max-width: 210px; white-space: normal; line-height: 1.5; }
 .order-mp-id span, .test-order-id { display: block; overflow-wrap: anywhere; user-select: all; }
 .test-order-id { margin-top: 8px; font-size: 12px; }
+
+.order-details-button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #c9b78c; border-radius: 8px; padding: 10px 12px; background: transparent; color: #755b28; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .2s, border-color .2s; }
+.order-details-button:hover { background: #c9a55b20; border-color: var(--gold); }
+.order-details-button:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.order-details { width: min(640px, 100%); max-height: calc(100dvh - 40px); }
+.order-detail-summary { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; font-size: 13px; }
+.order-detail-section { padding: 20px 0; border-bottom: 1px solid #c9c4bb; }
+.order-detail-section h3 { margin: 0 0 14px; font-size: 16px; }
+.order-detail-section dl { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0; }
+.order-detail-section dl div:first-child { grid-column: 1 / -1; }
+.order-detail-section dt { font-size: 12px; opacity: .7; margin-bottom: 5px; }
+.order-detail-section dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.order-detail-section a { color: inherit; text-underline-offset: 3px; }
+.order-detail-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.order-detail-items li { display: flex; gap: 16px; justify-content: space-between; align-items: start; font-size: 14px; }
+.order-detail-items li div { min-width: 0; overflow-wrap: anywhere; }
+.order-detail-items li > strong { white-space: nowrap; }
+.order-detail-items small { display: block; margin-top: 5px; opacity: .7; }
+.order-detail-total { display: flex; justify-content: space-between; gap: 16px; padding: 22px 0; font-size: 18px; }
+.order-detail-loading { padding: 40px 0; text-align: center; animation: detail-pulse 1.5s ease-in-out infinite; }
+@keyframes detail-pulse { 50% { opacity: .45; } }
+[data-theme="dark"] .order-details-button { color: var(--gold-light); border-color: #6c532a; }
+[data-theme="dark"] .order-detail-section { border-color: #3b3225; }
+@media (max-width: 480px) { .order-detail-section dl { grid-template-columns: 1fr; } .order-details { max-height: calc(100dvh - 24px); } }
+@media (prefers-reduced-motion: reduce) { .order-detail-loading { animation: none; } }

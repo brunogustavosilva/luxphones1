@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHmac, randomUUID } from 'node:crypto';
 import { normalizeCheckout, priceCart, checkoutHash, verifyWebhook, validatePayment } from './commerce-policy.js';
 import { createMercadoPago, preferenceBody } from './mercado-pago.js';
-const input = () => ({ customer_name: 'Cliente Teste', customer_email: 'cliente@example.com', customer_whatsapp: '(41) 99999-9999', checkout_key: randomUUID(), items: [{ product_id: '1', quantity: 2 }] });
+const input = () => ({ customer_name: 'Cliente Teste', customer_email: 'cliente@example.com', customer_address: 'Rua Teste, 10, Centro, Curitiba PR', customer_zipcode: '80000-000', customer_whatsapp: '(41) 99999-9999', checkout_key: randomUUID(), items: [{ product_id: '1', quantity: 2 }] });
 
 test('checkout normalizes contact and rejects malformed or excessive quantities', () => {
   const body = input();
@@ -45,7 +45,7 @@ test('test mode refuses a real seller before opening a checkout', async () => {
   await assert.rejects(mp.merchant(), /conta vendedora de teste/);
 });
 test('localhost returns do not enable HTTPS-only auto return or webhook', () => {
-  const order = { public_token: randomUUID(), checkout_key: randomUUID(), created_at: new Date(), items: [{ name: 'Fone', product_id: '1', quantity: 1, unit_price: 99.9 }], customer_name: 'Cliente', customer_email: 'cliente@example.com', customer_whatsapp: '5541999999999' };
+  const order = { public_token: randomUUID(), checkout_key: randomUUID(), created_at: new Date(), items: [{ name: 'Fone', product_id: '1', quantity: 1, unit_price: 99.9 }], customer_name: 'Cliente', customer_email: 'cliente@example.com', customer_address: 'Rua Teste, 10, Centro, Curitiba PR', customer_zipcode: '80000-000', customer_whatsapp: '5541999999999' };
   const local = preferenceBody(order, 'http://localhost:5173', '');
   assert.equal(local.auto_return, undefined);
   assert.equal(local.notification_url, undefined);
@@ -56,7 +56,7 @@ test('localhost returns do not enable HTTPS-only auto return or webhook', () => 
 
 test('published checkout returns every payment result to the current domain and identifies the order', () => {
   const token = randomUUID();
-  const order = { public_token: token, checkout_key: randomUUID(), created_at: new Date(), items: [{ name: 'Produto teste', product_id: '1', quantity: 1, unit_price: 10 }], customer_name: 'Cliente', customer_email: 'cliente@example.com', customer_whatsapp: '5541999999999' };
+  const order = { public_token: token, checkout_key: randomUUID(), created_at: new Date(), items: [{ name: 'Produto teste', product_id: '1', quantity: 1, unit_price: 10 }], customer_name: 'Cliente', customer_email: 'cliente@example.com', customer_address: 'Rua Teste, 10, Centro, Curitiba PR', customer_zipcode: '80000-000', customer_whatsapp: '5541999999999' };
   const domain = 'https://luxphones1-odpn.vercel.app';
   const body = preferenceBody(order, domain, domain + '/api/payments/webhook');
   for (const value of Object.values(body.back_urls)) {
@@ -74,4 +74,15 @@ test('verified test sellers accept live_mode=true without allowing an unverified
   validatePayment(payment, order, { testMode: true, merchantId: '456', verifiedTestSeller: true });
   assert.throws(() => validatePayment(payment, order, { testMode: true, merchantId: '456' }), /Ambiente/);
   assert.throws(() => validatePayment({ ...payment, live_mode: false }, order, { testMode: false, merchantId: '456' }), /Ambiente/);
+});
+
+test('checkout requires an address and CEP, accepts optional complement, and hashes delivery changes', () => {
+  const body = input();
+  const normalized = normalizeCheckout({ ...body, customer_complement: '  Apto 12  ' });
+  assert.equal(normalized.customer_zipcode, '80000000');
+  assert.equal(normalized.customer_complement, 'Apto 12');
+  assert.equal(normalizeCheckout(body).customer_complement, '');
+  for (const changed of [{ customer_address: '' }, { customer_address: 'a'.repeat(301) }, { customer_zipcode: '12345' }, { customer_complement: 'a'.repeat(161) }]) assert.throws(() => normalizeCheckout({ ...body, ...changed }));
+  assert.notEqual(checkoutHash(normalized), checkoutHash({ ...normalized, customer_address: 'Outro endereço, 20' }));
+  assert.notEqual(checkoutHash(normalized), checkoutHash({ ...normalized, customer_complement: 'Apto 13' }));
 });

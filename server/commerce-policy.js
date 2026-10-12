@@ -15,6 +15,12 @@ export function normalizeCheckout(body) {
   const email = String(body?.customer_email || '').trim().toLowerCase();
   if (name.length < 2 || name.length > 120) throw problem('Informe o nome completo do cliente.');
   if (email.length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw problem('Informe um e-mail válido.');
+  const customer_address = String(body?.customer_address || '').trim();
+  const customer_complement = String(body?.customer_complement || '').trim();
+  const customer_zipcode = String(body?.customer_zipcode || '').replace(/\D/g, '');
+  if (customer_address.length < 5 || customer_address.length > 300) throw problem('Informe o endereço completo, com número, bairro e cidade.');
+  if (customer_complement.length > 160) throw problem('O complemento deve ter até 160 caracteres.');
+  if (!/^\d{8}$/.test(customer_zipcode)) throw problem('Informe um CEP válido com 8 números.');
   if (!uuidPattern.test(String(body?.checkout_key || ''))) throw problem('Identificador do carrinho inválido.');
   if (!Array.isArray(body?.items) || !body.items.length || body.items.length > 30) throw problem('O carrinho deve conter de 1 a 30 produtos.');
   const items = new Map();
@@ -25,7 +31,7 @@ export function normalizeCheckout(body) {
     if (quantity > 20) throw problem('O limite é de 20 unidades por produto.');
     items.set(id, quantity);
   }
-  return { customer_name: name, customer_email: email, customer_whatsapp: whatsapp(body.customer_whatsapp), checkout_key: body.checkout_key.toLowerCase(), items: [...items].sort(([a], [b]) => a.localeCompare(b)).map(([product_id, quantity]) => ({ product_id, quantity })) };
+  return { customer_address, customer_complement, customer_zipcode, customer_name: name, customer_email: email, customer_whatsapp: whatsapp(body.customer_whatsapp), checkout_key: body.checkout_key.toLowerCase(), items: [...items].sort(([a], [b]) => a.localeCompare(b)).map(([product_id, quantity]) => ({ product_id, quantity })) };
 }
 export function checkoutHash(input) {
   const { checkout_key, ...payload } = input;

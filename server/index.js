@@ -191,6 +191,13 @@ app.get('/api/orders', requireAdmin, asyncRoute(async (req, res) => {
   res.json(rows);
 }));
 
+app.get('/api/orders/:id', requireAdmin, asyncRoute(async (req, res) => {
+  if (!/^\d{1,18}$/.test(req.params.id)) throw problem('Pedido inválido.');
+  const { rows } = await pool.query(`SELECT id, customer_name, customer_whatsapp, customer_email, customer_address, customer_complement, customer_zipcode, purchase_description, items, total, payment_status, status, mp_order_id, payment_refunded_amount, created_at FROM orders WHERE id = $1 AND created_at >= ${retentionCutoff}`, [req.params.id]);
+  if (!rows.length) throw problem('Pedido não encontrado.', 404);
+  res.json(rows[0]);
+}));
+
 registerCommerce(app, { pool, requireAdmin, asyncRoute, cleanupHistory });
 
 app.post('/api/orders', requireAdmin, asyncRoute(async (req, res) => {
