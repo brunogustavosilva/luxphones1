@@ -54,9 +54,11 @@ export function verifyWebhook({ signature, requestId, dataId, secret }) {
   const expected = createHmac('sha256', secret).update(manifest).digest();
   return timingSafeEqual(expected, Buffer.from(parts.v1, 'hex'));
 }
-export function validatePayment(payment, order, { testMode, merchantId }) {
+export function validatePayment(payment, order, { testMode, merchantId, verifiedTestSeller = false }) {
   if (String(payment.external_reference) !== String(order.checkout_key) || payment.currency_id !== 'BRL' || Math.round(Number(payment.transaction_amount) * 100) !== Math.round(Number(order.total) * 100)) throw problem('Pagamento não corresponde ao pedido.', 409);
   if (String(payment.collector_id) !== String(merchantId)) throw problem('Recebedor do pagamento inválido.', 409);
-  if (payment.live_mode !== !testMode) throw problem('Ambiente do pagamento não corresponde à configuração.', 409);
+  // Checkout Pro test sellers can return live_mode=true. The seller profile,
+  // verified with /users/me, is authoritative for test-account payments.
+  if (typeof payment.live_mode !== 'boolean' || (testMode ? !verifiedTestSeller : !payment.live_mode)) throw problem('Ambiente do pagamento não corresponde à configuração.', 409);
   if (!paymentStatuses.includes(payment.status) || !/^\d+$/.test(String(payment.id))) throw problem('Resposta de pagamento inválida.', 502);
 }

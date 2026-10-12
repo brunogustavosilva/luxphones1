@@ -36,9 +36,9 @@ test('webhook signature rejects missing or tampered headers and data', () => {
 });
 test('payment requires matching amount, reference, currency, receiver and test mode', () => {
   const payment = { id: '123', external_reference: 'key', transaction_amount: 19.9, currency_id: 'BRL', collector_id: '456', live_mode: false, status: 'approved' };
-  const order = { checkout_key: 'key', total: '19.90' }; const config = { testMode: true, merchantId: '456' };
+  const order = { checkout_key: 'key', total: '19.90' }; const config = { testMode: true, merchantId: '456', verifiedTestSeller: true };
   validatePayment(payment, order, config);
-  for (const changed of [{ transaction_amount: 1 }, { external_reference: 'other' }, { currency_id: 'USD' }, { collector_id: '000' }, { live_mode: true }, { status: 'invented' }]) assert.throws(() => validatePayment({ ...payment, ...changed }, order, config));
+  for (const changed of [{ transaction_amount: 1 }, { external_reference: 'other' }, { currency_id: 'USD' }, { collector_id: '000' }, { live_mode: 'true' }, { status: 'invented' }]) assert.throws(() => validatePayment({ ...payment, ...changed }, order, config));
 });
 test('test mode refuses a real seller before opening a checkout', async () => {
   const mp = createMercadoPago({ token: 'placeholder', fetcher: async () => ({ ok: true, json: async () => ({ id: 1, tags: [] }) }) });
@@ -66,4 +66,12 @@ test('published checkout returns every payment result to the current domain and 
   }
   assert.equal(body.auto_return, 'approved');
   assert.equal(body.notification_url, domain + '/api/payments/webhook');
+});
+
+test('verified test sellers accept live_mode=true without allowing an unverified test environment', () => {
+  const payment = { id: '123', external_reference: 'key', transaction_amount: 19.9, currency_id: 'BRL', collector_id: '456', live_mode: true, status: 'approved' };
+  const order = { checkout_key: 'key', total: '19.90' };
+  validatePayment(payment, order, { testMode: true, merchantId: '456', verifiedTestSeller: true });
+  assert.throws(() => validatePayment(payment, order, { testMode: true, merchantId: '456' }), /Ambiente/);
+  assert.throws(() => validatePayment({ ...payment, live_mode: false }, order, { testMode: false, merchantId: '456' }), /Ambiente/);
 });

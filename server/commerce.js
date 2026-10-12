@@ -73,7 +73,7 @@ export function registerCommerce(app, { pool, requireAdmin, asyncRoute, cleanupH
       const { rows } = await client.query(`SELECT id, total, items, status, payment_status, checkout_key, payment_id, payment_updated_at, stock_applied, stock_issue FROM orders WHERE checkout_key = $1 AND source = 'mercado_pago' AND created_at >= ${retentionCutoff} FOR UPDATE`, [payment.external_reference]);
       const order = rows[0];
       if (!order) { await client.query('COMMIT'); return; }
-      validatePayment(payment, order, { merchantId, testMode: mp.testMode });
+      validatePayment(payment, order, { merchantId, testMode: mp.testMode, verifiedTestSeller: mp.testMode });
       const updated = new Date(payment.date_last_updated || payment.date_created);
       if (!Number.isFinite(updated.getTime())) throw problem('Data do pagamento inválida.', 502);
       if (order.payment_id && String(order.payment_id) !== String(payment.id) && ['approved', 'refunded', 'charged_back'].includes(order.payment_status)) {
