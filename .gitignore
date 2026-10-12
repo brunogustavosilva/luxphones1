@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.DS_Store
+npm-debug.log*
+.neon
+.env.local
+
+.env.*
+!.env.example
+
+# Configurações locais de ferramentas e credenciais
+.agents/
+.codex/
+.aws/
+skills-lock.json

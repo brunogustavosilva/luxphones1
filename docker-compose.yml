@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-lucasphone2026}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-lucasphone2026}
+      JWT_SECRET: ${JWT_SECRET}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN}
+      MP_ENV: ${MP_ENV:-test}
+      SITE_URL: ${SITE_URL:-http://localhost:5173}
+      MP_WEBHOOK_URL: ${MP_WEBHOOK_URL:-}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
+    restart: unless-stopped
