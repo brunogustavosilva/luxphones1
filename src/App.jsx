@@ -117,7 +117,7 @@ function Storefront() {
         <a href="#colecao" onClick={() => setMenuOpen(false)}>Produtos</a>
         <a href="#sobre" onClick={() => setMenuOpen(false)}>Sobre nós</a>
         <a href="#contato" onClick={() => setMenuOpen(false)}>Contato</a>
-        <a href="/admin" className="mobile-admin-entry">Área do cliente</a>
+        <a href="/admin" className="mobile-admin-entry">Área do administrador</a>
       </nav>
       <div className="header-actions"><button ref={headerCartRef} className="cart-trigger" onClick={() => setCartOpen(true)} aria-label={`Abrir carrinho, ${cart.reduce((sum, item) => sum + item.quantity, 0)} itens`}><ShoppingBag size={19}/><span>{cart.reduce((sum, item) => sum + item.quantity, 0)}</span></button><a href="/admin" className="admin-entry"><ShieldCheck size={15}/> Área do cliente</a><button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Fechar navegação' : 'Abrir navegação'} aria-expanded={menuOpen} aria-controls="store-navigation">{menuOpen ? <X size={22}/> : <Menu size={22}/>}</button></div>
     </header>
